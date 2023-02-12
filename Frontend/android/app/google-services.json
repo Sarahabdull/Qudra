@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "646286184110",
+    "project_id": "kodra-ee9a0",
+    "storage_bucket": "kodra-ee9a0.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:646286184110:android:d076f784d9628e4385e73f",
+        "android_client_info": {
+          "package_name": "com.kodra.kodra"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "646286184110-2goc2j8ubrcgtt3t0dl23evpjv047mpn.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAOexIWk0Z2ijFeDyS54THCQfbJAYV1zME"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "646286184110-2goc2j8ubrcgtt3t0dl23evpjv047mpn.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

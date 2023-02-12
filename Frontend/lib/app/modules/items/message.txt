@@ -1,0 +1,232 @@
+import 'package:animate_do/animate_do.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:get/route_manager.dart';
+import 'package:hostn_app/helper/debouncer.dart';
+import 'package:video_player/video_player.dart';
+
+class VideoPlayerScreen extends StatefulWidget {
+  final String videoUrl;
+
+  const VideoPlayerScreen({
+    Key? key,
+    required this.videoUrl,
+  }) : super(key: key);
+
+  @override
+  State<VideoPlayerScreen> createState() => _VideoPlayerScreenState();
+}
+
+class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
+  late VideoPlayerController _controller;
+  bool fullScreen = false;
+  bool retry = false;
+  bool isControlsAppeared = false;
+  Debouncer debouncer = Debouncer(milliseconds: 5000);
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = VideoPlayerController.network(widget.videoUrl)
+      ..setLooping(false)
+      ..setVolume(0.0)
+      ..initialize().then((value) => _controller.play());
+
+    _controller.addListener(checkVideo);
+    showControls();
+  }
+
+  void checkVideo() {
+    // // Implement your calls inside these conditions' bodies :
+    // if (_controller.value.position == Duration(seconds: 0, minutes: 0, hours: 0)) {
+    //   print('video Started');
+    // }
+
+    /// video  completed
+    retry = _controller.value.position == _controller.value.duration;
+    setState(() {});
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+    if (fullScreen) {
+      _setAllOrientation();
+    }
+    _controller.dispose();
+    debouncer.dispose();
+  }
+
+  hideControls() {
+    if (!mounted) {
+      return;
+    }
+    setState(() => isControlsAppeared = false);
+  }
+
+  showControls() {
+    if (!mounted) {
+      return;
+    }
+    setState(() => isControlsAppeared = true);
+    debouncer.run(() {
+      setState(() => isControlsAppeared = false);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        if (isControlsAppeared) {
+          hideControls();
+        } else {
+          showControls();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(
+          child: _controller.value.isInitialized
+              ? Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Center(
+                      child: AspectRatio(
+                        aspectRatio: _controller.value.aspectRatio,
+                        child: VideoPlayer(_controller),
+                      ),
+                    ),
+                    PositionedDirectional(
+                      top: kToolbarHeight / 2,
+                      start: 0,
+                      child: Visibility(
+                        visible: isControlsAppeared,
+                        child: SlideInDown(
+                          duration: Duration(milliseconds: 500),
+                          child: IconButton(
+                            onPressed: () => Get.back(),
+                            icon: BackButton(color: Colors.white),
+                          ),
+                        ),
+                      ),
+                    ),
+                    PositionedDirectional(
+                      start: 0,
+                      end: 0,
+                      bottom: 0,
+                      child: Visibility(
+                        visible: isControlsAppeared,
+                        child: Directionality(
+                          textDirection: TextDirection.ltr,
+                          child: SlideInUp(
+                            duration: Duration(milliseconds: 500),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.max,
+                              children: [
+                                IconButton(
+                                  onPressed: () => retry
+                                      ? onRetry()
+                                      : _controller.value.isPlaying
+                                          ? _controller.pause()
+                                          : _controller.play(),
+                                  icon: Icon(
+                                    retry
+                                        ? Icons.replay
+                                        : _controller.value.isPlaying
+                                            ? Icons.pause
+                                            : Icons.play_arrow,
+                                  ),
+                                  color: Colors.white,
+                                  iconSize: 30,
+                                ),
+                                ValueListenableBuilder(
+                                  valueListenable: _controller,
+                                  builder: (context, VideoPlayerValue value, child) {
+                                    return Text(
+                                      _videoDuration(value.position),
+                                      style: TextStyle(fontSize: 18, color: Colors.white),
+                                    );
+                                  },
+                                ),
+                                Expanded(
+                                  child: SizedBox(
+                                    height: 7,
+                                    child: GestureDetector(
+                                      onTapDown: (details) => showControls(),
+                                      child: VideoProgressIndicator(
+                                        _controller,
+                                        allowScrubbing: true,
+                                        padding: EdgeInsets.symmetric(horizontal: 12),
+                                        colors: VideoProgressColors(
+                                          playedColor: Theme.of(context).primaryColor,
+                                          bufferedColor: Colors.white54,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                Text(
+                                  _videoDuration(_controller.value.duration),
+                                  style: TextStyle(fontSize: 18, color: Colors.white),
+                                ),
+                                _controller.value.aspectRatio > 1
+                                    ? IconButton(
+                                        onPressed: () async {
+                                          if (fullScreen) {
+                                            _setAllOrientation();
+                                          } else {
+                                            _landscapeMode();
+                                          }
+                                        },
+                                        icon: Icon(fullScreen ? Icons.close_fullscreen : Icons.fullscreen),
+                                        color: Colors.white,
+                                        iconSize: 30,
+                                      )
+                                    : SizedBox(width: 10),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                )
+              : CircularProgressIndicator.adaptive(),
+        ),
+      ),
+    );
+  }
+
+  String _videoDuration(Duration duration) {
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+    final hours = twoDigits(duration.inHours);
+    final minutes = twoDigits(duration.inMinutes.remainder(60));
+    final seconds = twoDigits(duration.inSeconds.remainder(60));
+
+    return [if (duration.inHours > 0) hours, minutes, seconds].join(':');
+  }
+
+  Future _setAllOrientation() async {
+    await SystemChrome.setPreferredOrientations(DeviceOrientation.values);
+    setState(() {
+      fullScreen = false;
+    });
+  }
+
+  void _landscapeMode() async {
+    await SystemChrome.setPreferredOrientations([
+      DeviceOrientation.landscapeRight,
+      DeviceOrientation.landscapeLeft,
+    ]);
+    setState(() {
+      fullScreen = true;
+    });
+  }
+
+  onRetry() async {
+    retry = false;
+    await _controller.seekTo(Duration(seconds: 0));
+    await _controller.play();
+  }
+}
